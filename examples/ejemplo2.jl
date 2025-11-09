@@ -1,7 +1,35 @@
-# Nombres
-# El cambio de alfa
+"""
+ejemplo2.jl
+
+Ejemplo de optimización no lineal usando JuMP e Ipopt.
+
+Descripción:
+ - Variables: vector `x[1:2]` (dos variables reales).
+ - Función objetivo (no lineal): minimizar (x1 - 3)^3 + (x2 - 4)^2.
+ - Restricción no lineal: (x1 - 1)^2 + (x2 + 1)^3 + exp(-x1) <= 1.
+
+Este archivo muestra la sintaxis básica para problemas no lineales en JuMP:
+ - `@NLobjective` para la función objetivo no lineal.
+ - `@NLconstraint` para restricciones no lineales.
+
+Dependencias: JuMP, Ipopt
+Instalación rápida (REPL):
+	] add JuMP Ipopt
+
+Ejecución:
+	julia examples/ejemplo2.jl
+
+Notas:
+ - Ipopt es un solver para problemas de optimización no lineal; en muchos casos
+	 se instala automáticamente como artefacto de `Ipopt.jl`, pero puede requerir
+	 dependencias del sistema en entornos particulares.
+ - Si el solver no converge o da errores, revisa el estado de terminación y la
+	 salida del solver para diagnosticar (tolerancias, derivadas, puntos iniciales).
+"""
 
 using JuMP, Ipopt
+
+# Crear el modelo con Ipopt
 m = Model(Ipopt.Optimizer)
 
 ## Asi se declara un problema de optimizacion no lineal (tanto la FO como las restricciones)
@@ -30,5 +58,12 @@ m = Model(Ipopt.Optimizer)
 
 JuMP.optimize!(m)
 
-println("** Optimal objective function value = ", JuMP.objective_value(m))
-println("** Optimal solution = ", JuMP.value.(x))
+status = JuMP.termination_status(m)
+println("Termination status: ", status)
+
+if JuMP.is_terminated(m)
+		println("Objective value = ", JuMP.objective_value(m))
+		println("Solution x = ", JuMP.value.(x))
+else
+		println("El solver no terminó correctamente. Revisa la salida del solver para más detalles.")
+end
