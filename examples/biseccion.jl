@@ -39,7 +39,8 @@ Función objetivo: f(x) = 12x - 3x⁴ - 2x⁶
 - Valor de f(x)
 """
 function f(x)
-	return 12*x - 3*x^4 - 2*x^6
+	#return 12*x - 3*x^4 - 2*x^6
+    return x^3 - 2*x - 5
 end
 
 """
@@ -188,8 +189,8 @@ println()
 
 # Definir intervalo inicial [a, b]
 # Debemos elegir a y b tal que f(a)*f(b) < 0
-a = 1.0
-b = 2.0
+a = 0.0
+b = 4.0
 
 println("Intervalo inicial: [$a, $b]")
 println("f($a) = $(f(a))")
