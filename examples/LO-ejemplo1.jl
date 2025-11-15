@@ -70,5 +70,10 @@ hline!([6], label = "y = 6", color = :green)
 # Marcar la solución óptima en el gráfico
 scatter!([JuMP.value(x)], [JuMP.value(y)], label = "Óptimo", color = :blue)
 
+# Mostrar en VS Code
+display(current())
+
+gr()
+
 # Guardar figura
 savefig("plot.pdf")
