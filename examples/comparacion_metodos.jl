@@ -185,12 +185,12 @@ function comparar_metodos(f, df, a, b, x0, tol)
 		  linewidth=2, color=:red, marker=:square, markersize=4)
 	plot!(p[2], 0:length(hist_newton)-1, hist_newton,
 		  label="Newton ($iter_newton iter)",
-		  linewidth=2, color=:green, marker=:star5, markersize=6)
+		  linewidth=2, color=:green, marker=:star5, markersize=6,
+		  legend=:right)
 	
 	xlabel!(p[2], "Iteración")
 	ylabel!(p[2], "x")
 	title!(p[2], "Convergencia de las Aproximaciones")
-	legend!(p[2], :right)
 	
 	# ============================================================
 	# SUBPLOT 3: Error relativo (escala logarítmica)
