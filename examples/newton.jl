@@ -230,7 +230,7 @@ println("=" ^ 60)
 println()
 
 # Definir punto inicial
-x0 = 1.5
+x0 = 1
 
 println("Punto inicial: x₀ = $x0")
 println("f(x₀) = $(f(x0))")
