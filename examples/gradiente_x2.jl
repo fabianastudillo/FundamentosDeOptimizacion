@@ -15,7 +15,10 @@ x_history = [x_current]
 for i in 1:iterations
     global x_current  # Declarar como global para evitar problemas de scope
     gradient = df_dx(x_current)
-    x_current -= learning_rate * gradient
+    x_temp=x_current
+    x_current = x_current - learning_rate * gradient
+    error = x_temp - x_current
+    println("error = $error")
     push!(x_history, x_current)
 end
 

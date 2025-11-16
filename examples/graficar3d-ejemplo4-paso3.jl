@@ -64,34 +64,6 @@ text!(ax, 0.0, 0.0;
     offset = (10, 10),  # desplazar texto hacia arriba-derecha
     color = :black)
 
-# Encontrar el punto mínimo de la función
-min_idx = argmin(Z)
-x_min = xs[min_idx[1]]
-y_min = ys[min_idx[2]]
-z_min = Z[min_idx]
-
-# Marcar el punto mínimo
-scatter!(ax, [x_min], [y_min]; 
-    color = :cyan, 
-    markersize = 15,
-    strokecolor = :black,
-    strokewidth = 1.5)
-
-# Etiquetar el punto mínimo
-text!(ax, x_min, y_min;
-    text = L"$\text{mín}$",
-    fontsize = 24,
-    align = (:left, :top),
-    offset = (10, -10),
-    color = :black)
-
-# Agregar flecha desde (0,0) hacia el mínimo
-arrows!(ax, [0.0], [0.0], [x_min - 0.0], [y_min - 0.0];
-    color = :red,
-    linewidth = 3,
-    arrowsize = 20,
-    lengthscale = 0.9)  # 90% de la longitud para que no tape el punto
-
 # Barra de color con etiqueta
 Colorbar(fig[1, 2], 
     label = "z", 
@@ -101,10 +73,9 @@ Colorbar(fig[1, 2],
     limits = (minimum(Z), maximum(Z)))
 
 # Guardar PNG de alta resolución
-save("examples/graficar3d-ejemplo4-paso3.png", fig; px_per_unit = 3)
-println("✓ Figura guardada en: examples/graficar3d-ejemplo4-paso3.png (alta resolución)")
+save("examples/curvas_nivel-ejemplo4.png", fig; px_per_unit = 3)
+println("✓ Figura guardada en: examples/curvas_nivel-ejemplo4.png (alta resolución)")
 println("  Tamaño: 1200×1000 @ 3× = 3600×3000 px efectivos")
-println("  Punto mínimo: ($(round(x_min, digits=3)), $(round(y_min, digits=3))) con z = $(round(z_min, digits=3))")
 
 # Opcional: guardar versiones vectoriales (PDF, SVG)
 # save("examples/curvas_nivel-ejemplo4.pdf", fig)
