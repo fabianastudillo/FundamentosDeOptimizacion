@@ -67,7 +67,7 @@ Colorbar(fig[1, 2],
     limits = (-30, 8))  # Rango de z fijo entre -30 y 8
 
 # Guardar PNG de muy alta resolución (también PDF/SVG si quieres)
-save("examples/graficar3d-ejemplo4-paso2.png", fig; px_per_unit = 3)  # 3× resolución base
+save("examples/graficar3d-ejemplo4-paso1.png", fig; px_per_unit = 3)  # 3× resolución base
 println("✓ Figura guardada en: examples/graficar3d-ejemplo4-paso2.png (alta resolución)")
 println("  Tamaño: 1400×1000 @ 3× = 4200×3000 px efectivos")
 
