@@ -6,7 +6,6 @@ df_dx(x) = 2x
 
 # Configuración de parámetros
 learning_rate = 0.1
-max_iterations = 50
 initial_point = 10.0 # Punto inicial para la optimización
 epsilon = 1e-6  # Criterio de parada
 
@@ -14,28 +13,21 @@ epsilon = 1e-6  # Criterio de parada
 x_current = initial_point
 x_history = [x_current]
 iteration = 0
+error = Inf  # Inicializar el error como infinito
 
-for i in 1:max_iterations
-    global x_current, iteration  # Declarar como global para evitar problemas de scope
-    iteration = i
+while error >= epsilon
+    global x_current, iteration, error  # Declarar como global para evitar problemas de scope
+    iteration += 1
     gradient = df_dx(x_current)
     x_temp = x_current
     x_current = x_current - learning_rate * gradient
     error = abs(x_temp - x_current)
     
-    println("Iteración $i: x = $x_current, error = $error")
+    println("Iteración $iteration: x = $x_current, gradiente = $gradient, error = $error")
     push!(x_history, x_current)
-    
-    # Criterio de parada: si el error es menor que epsilon, salir
-    if error < epsilon
-        println("\n✓ Convergencia alcanzada en iteración $i (error = $error < ε = $epsilon)")
-        break
-    end
 end
 
-if iteration == max_iterations
-    println("\n⚠ Se alcanzó el máximo de iteraciones ($max_iterations)")
-end
+println("\n✓ Convergencia alcanzada en iteración $iteration (error = $error < ε = $epsilon)")
 
 # Visualización usando Plots.jl
 using Plots
