@@ -121,7 +121,7 @@ Colorbar(fig[1, 2],
 
 # Guardar PNG de alta resolución
 save("examples/curvas_nivel-ejemplo4.png", fig; px_per_unit = 3)
-println("✓ Figura guardada en: examples/curvas_nivel-ejemplo4.png (alta resolución)")
+println("✓ Figura guardada en: examples/graficar3d-ejemplo4-paso5.png (alta resolución)")
 println("  Tamaño: 1200×1000 @ 3× = 3600×3000 px efectivos")
 
 # Opcional: guardar versiones vectoriales (PDF, SVG)

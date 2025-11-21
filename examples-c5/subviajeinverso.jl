@@ -1,0 +1,295 @@
+#!/usr/bin/env julia
+################################################################################
+# Animación del Algoritmo de Subviaje Inverso (2-opt)
+# Problema del Viajante de Comercio (TSP)
+#
+# Visualiza cómo el algoritmo 2-opt mejora iterativamente el recorrido
+# reemplazando arcos ineficientes por combinaciones mejor
+#
+# Requisitos:
+#  - CairoMakie.jl
+#  - Random.jl (incluido en Julia)
+################################################################################
+
+using CairoMakie, Random
+
+# Matriz de distancias
+A = [
+    0  12  10   0   0   0  12
+   12   0   8  12   0   0   0
+   10   8   0  11   3   0   9
+    0  12  11   0  11  10   0
+    0   0   3  11   0   6   7
+    0   0   0  10   6   0   9
+   12   0   9   0   7   9   0
+]
+
+# Coordenadas de ciudades (distribuidas en círculo para visualización)
+n_cities = 7
+angles = range(0, 2π, length=n_cities+1)[1:n_cities]
+coords = [(cos(angle), sin(angle)) for angle in angles]
+
+println("=" ^ 70)
+println("ALGORITMO DE SUBVIAJE INVERSO (2-OPT)")
+println("=" ^ 70)
+println("Ciudades: 1, 2, 3, 4, 5, 6, 7")
+println("Recorrido inicial: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 1")
+println()
+
+# Función para calcular distancia total de un recorrido
+function calculate_distance(tour, dist_matrix)
+    total = 0.0
+    for i in 1:length(tour)
+        current = tour[i]
+        next = tour[i % length(tour) + 1]
+        total += dist_matrix[current, next]
+    end
+    return total
+end
+
+# Función para aplicar 2-opt (invertir un segmento)
+function two_opt_move(tour, i, k)
+    """Invierte el segmento del tour entre posiciones i y k"""
+    new_tour = copy(tour)
+    new_tour[i:k] = reverse(new_tour[i:k])
+    return new_tour
+end
+
+# Recorrido inicial
+tour = [1, 2, 3, 4, 5, 6, 7]
+initial_distance = calculate_distance(tour, A)
+tour_history = [copy(tour)]
+distance_history = [initial_distance]
+improvement_history = [0.0]
+
+println("Recorrido inicial: $(join(tour, " → ")) → 1")
+println("Distancia inicial: $initial_distance")
+println()
+println("Ejecutando algoritmo 2-opt...")
+println("-" ^ 70)
+
+# Algoritmo 2-opt
+improved = true
+iteration = 0
+max_iterations = 50
+
+while improved && iteration < max_iterations
+    global improved, iteration, tour
+    improved = false
+    iteration += 1
+    
+    for i in 1:length(tour)-1
+        for k in (i+2):length(tour)
+            # Crear nuevo tour invirtiendo segmento [i:k]
+            new_tour = two_opt_move(tour, i, k)
+            new_distance = calculate_distance(new_tour, A)
+            current_distance = calculate_distance(tour, A)
+            
+            # Si hay mejora, actualizar
+            if new_distance < current_distance
+                improvement = current_distance - new_distance
+                
+                println("Iteración $iteration: Invertir ciudades $(tour[i]) a $(tour[k])")
+                println("  Recorrido: $(join(new_tour, " → ")) → 1")
+                println("  Distancia anterior: $current_distance")
+                println("  Distancia nueva: $new_distance")
+                println("  Mejora: $improvement")
+                println()
+                
+                tour = new_tour
+                push!(tour_history, copy(tour))
+                push!(distance_history, new_distance)
+                push!(improvement_history, improvement)
+                
+                improved = true
+                break
+            end
+        end
+        if improved
+            break
+        end
+    end
+end
+
+println("-" ^ 70)
+println("Recorrido final: $(join(tour, " → ")) → 1")
+println("Distancia final: $(distance_history[end])")
+println("Mejora total: $(initial_distance - distance_history[end])")
+println("Mejora porcentual: $(round(100 * (initial_distance - distance_history[end]) / initial_distance, digits=2))%")
+println("Total de iteraciones: $(length(tour_history) - 1)")
+println()
+
+# Configurar tema
+set_theme!(Theme(
+    fonts = (regular = "Latin Modern Roman", bold = "Latin Modern Roman Bold"),
+    fontsize = 18,
+    Axis = (xlabelsize = 20, ylabelsize = 20, titlesize = 24)
+))
+
+println("Generando animación...")
+
+# Función para dibujar el tour
+function draw_tour(ax, tour, coords, dist_matrix, iteration_num, distance, improvement)
+    # Limpiar eje
+    empty!(ax)
+    
+    # Crear nuevo eje
+    ax = Axis(ax.figure[1, 1],
+              xlabel = "X",
+              ylabel = "Y",
+              title = "Algoritmo 2-opt (Subviaje Inverso)\nIteración: $iteration_num | Distancia: $(round(distance, digits=2))",
+              aspect = DataAspect(),
+              limits = (-1.5, 1.5, -1.5, 1.5))
+    
+    # Dibujar arcos del tour
+    for i in 1:length(tour)
+        current = tour[i]
+        next = tour[i % length(tour) + 1]
+        
+        x_start, y_start = coords[current]
+        x_end, y_end = coords[next]
+        
+        lines!(ax, [x_start, x_end], [y_start, y_end],
+               color = :blue,
+               linewidth = 2.5,
+               alpha = 0.7)
+        
+        # Flecha de dirección
+        dx = (x_end - x_start) * 0.8
+        dy = (y_end - y_start) * 0.8
+        arrows!(ax, [x_start], [y_start], [dx], [dy],
+               color = :blue,
+               linewidth = 2,
+               arrowsize = 15)
+    end
+    
+    # Dibujar ciudades
+    city_numbers = 1:length(coords)
+    xs = [coords[i][1] for i in city_numbers]
+    ys = [coords[i][2] for i in city_numbers]
+    
+    scatter!(ax, xs, ys,
+            color = :red,
+            markersize = 20,
+            strokecolor = :darkred,
+            strokewidth = 2)
+    
+    # Etiquetar ciudades
+    for (i, (x, y)) in enumerate(coords)
+        text!(ax, x, y,
+             text = string(i),
+             fontsize = 16,
+             align = (:center, :center),
+             color = :white,
+             font = :bold)
+    end
+    
+    # Mostrar información de mejora
+    if iteration_num > 0 && improvement > 0
+        text!(ax, -1.3, 1.2,
+             text = "Mejora: $(round(improvement, digits=2))",
+             fontsize = 16,
+             color = :green,
+             font = :bold)
+    end
+    
+    ax
+end
+
+# Crear figura base
+fig = Figure(size = (1000, 1000))
+
+# Generar animación
+record(fig, "examples-c5/subviajeinverso-animacion.gif", 
+       1:length(tour_history), 
+       framerate = 2) do frame_num
+    
+    empty!(fig)
+    
+    ax = Axis(fig[1, 1],
+              xlabel = "X",
+              ylabel = "Y",
+              title = "Algoritmo 2-opt (Subviaje Inverso)\nIteración: $(frame_num-1) | Distancia: $(round(distance_history[frame_num], digits=2))",
+              aspect = DataAspect(),
+              limits = (-1.5, 1.5, -1.5, 1.5),
+              xlabelsize = 20,
+              ylabelsize = 20,
+              titlesize = 22)
+    
+    tour = tour_history[frame_num]
+    distance = distance_history[frame_num]
+    improvement = improvement_history[frame_num]
+    
+    # Dibujar arcos del tour
+    for i in 1:length(tour)
+        current = tour[i]
+        next = tour[i % length(tour) + 1]
+        
+        x_start, y_start = coords[current]
+        x_end, y_end = coords[next]
+        
+        lines!(ax, [x_start, x_end], [y_start, y_end],
+               color = :blue,
+               linewidth = 3,
+               alpha = 0.8)
+        
+        # Flecha de dirección
+        dx = (x_end - x_start) * 0.75
+        dy = (y_end - y_start) * 0.75
+        arrows!(ax, [x_start], [y_start], [dx], [dy],
+               color = :blue,
+               linewidth = 2.5,
+               arrowsize = 18)
+    end
+    
+    # Dibujar ciudades
+    city_numbers = 1:length(coords)
+    xs = [coords[i][1] for i in city_numbers]
+    ys = [coords[i][2] for i in city_numbers]
+    
+    scatter!(ax, xs, ys,
+            color = :red,
+            markersize = 22,
+            strokecolor = :darkred,
+            strokewidth = 2.5)
+    
+    # Etiquetar ciudades
+    for (i, (x, y)) in enumerate(coords)
+        text!(ax, x, y,
+             text = string(i),
+             fontsize = 16,
+             align = (:center, :center),
+             color = :white,
+             font = :bold)
+    end
+    
+    # Mostrar información de mejora
+    if frame_num > 1 && improvement > 0
+        text!(ax, -1.3, 1.25,
+             text = "Mejora: $(round(improvement, digits=2))",
+             fontsize = 16,
+             color = :green,
+             font = :bold,
+             align = (:left, :top))
+    end
+    
+    # Mostrar distancia total
+    text!(ax, 1.3, -1.35,
+         text = "Distancia total: $(round(distance, digits=2))",
+         fontsize = 16,
+         color = :darkblue,
+         font = :bold,
+         align = (:right, :bottom))
+end
+
+println("✓ Animación guardada en: examples-c5/subviajeinverso-animacion.gif")
+println()
+println("=" ^ 70)
+println("RESUMEN DEL ALGORITMO")
+println("=" ^ 70)
+println("Distancia inicial: $initial_distance")
+println("Distancia final: $(distance_history[end])")
+println("Mejora total: $(initial_distance - distance_history[end])")
+println("Mejora porcentual: $(round(100 * (initial_distance - distance_history[end]) / initial_distance, digits=2))%")
+println("Número de iteraciones: $(length(tour_history) - 1)")
+println()
