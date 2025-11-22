@@ -15,14 +15,15 @@ using CairoMakie, Random
 
 # Matriz de distancias
 A = [
-    0  12  10   0   0   0  12
-   12   0   8  12   0   0   0
-   10   8   0  11   3   0   9
-    0  12  11   0  11  10   0
-    0   0   3  11   0   6   7
-    0   0   0  10   6   0   9
-   12   0   9   0   7   9   0
+    1000  12    10    1000  1000  1000  12;
+      12 1000   8      12   1000  1000 1000;
+      10   8   1000     11     3  1000   9;
+    1000  12    11    1000    11    10 1000;
+    1000 1000    3      11   1000     6   7;
+    1000 1000  1000     10     6  1000   9;
+      12 1000    9    1000     7     9 1000
 ]
+
 
 # Coordenadas de ciudades (distribuidas en círculo para visualización)
 n_cities = 7
@@ -34,6 +35,9 @@ println("ALGORITMO DE SUBVIAJE INVERSO (2-OPT)")
 println("=" ^ 70)
 println("Ciudades: 1, 2, 3, 4, 5, 6, 7")
 println("Recorrido inicial: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 1")
+println()
+println("Usando matriz de distancias A:")
+println(A)
 println()
 
 # Función para calcular distancia total de un recorrido
@@ -202,7 +206,7 @@ fig = Figure(size = (1000, 1000))
 # Generar animación
 record(fig, "examples-c5/subviajeinverso-animacion.gif", 
        1:length(tour_history), 
-       framerate = 2) do frame_num
+       framerate = 1) do frame_num
     
     empty!(fig)
     
@@ -220,7 +224,117 @@ record(fig, "examples-c5/subviajeinverso-animacion.gif",
     distance = distance_history[frame_num]
     improvement = improvement_history[frame_num]
     
-    # Dibujar arcos del tour
+    # Si no es el primer frame, mostrar los enlaces punteados que se van a cambiar
+    if frame_num > 1
+        tour_anterior = tour_history[frame_num - 1]
+        
+        # Encontrar qué cambió (comparar tours)
+        # Dibujar el tour anterior en gris claro con flechas
+        for i in 1:length(tour_anterior)
+            current = tour_anterior[i]
+            next = tour_anterior[i % length(tour_anterior) + 1]
+            
+            x_start, y_start = coords[current]
+            x_end, y_end = coords[next]
+            
+            lines!(ax, [x_start, x_end], [y_start, y_end],
+                   color = (:lightgray, 0.5),
+                   linewidth = 2,
+                   alpha = 0.4,
+                   linestyle = :dot)
+        end
+        
+        # Mostrar los enlaces punteados que se van a reemplazar
+        # Comparar los dos tours para encontrar los cambios
+        for i in 1:length(tour_anterior)
+            current_ant = tour_anterior[i]
+            next_ant = tour_anterior[i % length(tour_anterior) + 1]
+            
+            # Verificar si este enlace cambió en el nuevo tour
+            edge_exists = false
+            for j in 1:length(tour)
+                current_new = tour[j]
+                next_new = tour[j % length(tour) + 1]
+                
+                if (current_ant == current_new && next_ant == next_new) ||
+                   (current_ant == next_new && next_ant == current_new)
+                    edge_exists = true
+                    break
+                end
+            end
+            
+            # Si el enlace desaparece, dibujarlo en rojo punteado (será eliminado)
+            if !edge_exists
+                x_start, y_start = coords[current_ant]
+                x_end, y_end = coords[next_ant]
+                
+                lines!(ax, [x_start, x_end], [y_start, y_end],
+                       color = :red,
+                       linewidth = 3,
+                       alpha = 0.8,
+                       linestyle = :dash,
+                       label = frame_num == 2 ? "Enlaces a eliminar" : "")
+                
+                # Agregar distancia en el medio del enlace
+                dist = A[current_ant, next_ant]
+                x_mid = (x_start + x_end) / 2
+                y_mid = (y_start + y_end) / 2
+                text!(ax, x_mid, y_mid,
+                     text = "$(Int(dist))",
+                     fontsize = 16,
+                     color = :red,
+                     font = :bold,
+                     align = (:center, :center),
+                     offset = (8, 8))
+            end
+        end
+        
+        # Mostrar los enlaces nuevos en verde punteado (serán agregados)
+        for i in 1:length(tour)
+            current_new = tour[i]
+            next_new = tour[i % length(tour) + 1]
+            
+            # Verificar si este enlace es nuevo
+            edge_exists = false
+            for j in 1:length(tour_anterior)
+                current_ant = tour_anterior[j]
+                next_ant = tour_anterior[j % length(tour_anterior) + 1]
+                
+                if (current_new == current_ant && next_new == next_ant) ||
+                   (current_new == next_ant && next_new == current_ant)
+                    edge_exists = true
+                    break
+                end
+            end
+            
+            # Si el enlace es nuevo, dibujarlo en verde punteado
+            if !edge_exists
+                x_start, y_start = coords[current_new]
+                x_end, y_end = coords[next_new]
+                
+                lines!(ax, [x_start, x_end], [y_start, y_end],
+                       color = :green,
+                       linewidth = 3,
+                       alpha = 0.8,
+                       linestyle = :dash,
+                       label = frame_num == 2 ? "Enlaces a agregar" : "")
+                
+                # Agregar distancia en el medio del enlace
+                dist = A[current_new, next_new]
+                x_mid = (x_start + x_end) / 2
+                y_mid = (y_start + y_end) / 2
+                text!(ax, x_mid, y_mid,
+                     text = "$(Int(dist))",
+                     fontsize = 16,
+                     color = :green,
+                     font = :bold,
+                     align = (:center, :center),
+                     offset = (-8, -8))
+            end
+        end
+    end
+    
+    # Dibujar arcos del tour actual
     for i in 1:length(tour)
         current = tour[i]
         next = tour[i % length(tour) + 1]
@@ -240,6 +354,17 @@ record(fig, "examples-c5/subviajeinverso-animacion.gif",
                color = :blue,
                linewidth = 2.5,
                arrowsize = 18)
+        
+        # Agregar distancia en el medio del enlace
+        dist = A[current, next]
+        x_mid = (x_start + x_end) / 2
+        y_mid = (y_start + y_end) / 2
+        text!(ax, x_mid, y_mid,
+             text = "$(Int(dist))",
+             fontsize = 16,
+             color = :darkblue,
+             font = :bold,
+             align = (:center, :center))
     end
     
     # Dibujar ciudades
