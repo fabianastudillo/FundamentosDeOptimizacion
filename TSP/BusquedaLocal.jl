@@ -44,8 +44,75 @@ const DEFAULT_MATRIX = joinpath(@__DIR__, "..", "data", "matriz-8ciudades.txt")
 Lee una matriz de distancias desde `path`. Devuelve una matriz de Float64.
 """
 function read_distance_matrix(path::AbstractString; sep=';')
-	data = readdlm(path, sep, header=false)
-	return Array{Float64}(data)
+	# Leer líneas y parsear robustamente tokens separados por ';', ',' o espacios
+	raw = readlines(path)
+	mat_rows = Vector{Vector{Float64}}()
+	for ln in raw
+		line = strip(ln)
+		if isempty(line) || startswith(line, "```") || startswith(line, "#")
+			continue
+		end
+		parts = split(line, r"[;,:\s]+")
+		parts = filter(x -> !isempty(x), parts)
+		if isempty(parts)
+			continue
+		end
+		row = Float64[]
+		for p in parts
+			try
+				push!(row, parse(Float64, strip(p)))
+			catch e
+				throw(ArgumentError("No se pudo parsear token '$p' en la línea: $line"))
+			end
+		end
+		push!(mat_rows, row)
+	end
+	if isempty(mat_rows)
+		throw(ArgumentError("No se encontraron datos numéricos en $path"))
+	end
+	ncols = length(mat_rows[1])
+	for (i, r) in enumerate(mat_rows)
+		if length(r) != ncols
+			throw(ArgumentError("Número inconsistente de columnas en la línea $i: esperado $ncols, encontrado $(length(r))"))
+		end
+	end
+	m = zeros(Float64, length(mat_rows), ncols)
+	for i in 1:length(mat_rows), j in 1:ncols
+		m[i,j] = mat_rows[i][j]
+	end
+	@info "Matriz leída" n_rows=size(m,1) n_cols=size(m,2)
+	return m
+end
+
+"""
+	detect_no_link_threshold(mat) -> Real
+
+Detecta un umbral útil para interpretar valores como "sin enlace".
+Si hay un valor grande (>=1000) que aparece al menos n veces fuera de la diagonal
+se devuelve ese valor. Si hay ceros fuera de diagonal devuelve 0.0. En otro caso
+devuelve 0.0 (no tratar ceros como inválidos por defecto).
+"""
+function detect_no_link_threshold(mat::AbstractMatrix{<:Real})
+	n = size(mat,1)
+	off = Float64[]
+	for i in 1:n, j in 1:n
+		if i != j
+			push!(off, float(mat[i,j]))
+		end
+	end
+	counts = Dict{Float64,Int}()
+	for v in off
+		counts[v] = get(counts, v, 0) + 1
+	end
+	for (v,c) in counts
+		if v >= 1000.0 && c >= n
+			return v
+		end
+	end
+	if any(x -> x == 0.0, off)
+		return 0.0
+	end
+	return 0.0
 end
 
 """
@@ -151,9 +218,13 @@ function main()
 
 	# Construir recorrido inicial aleatorio: generar permutaciones aleatorias hasta
 	# encontrar un recorrido válido (sin arcos marcados como "no enlace").
-	# Para esta matriz se usan valores grandes (1000) para indicar arcos inexistentes;
-	# interpretamos valores >= 1000 como "sin enlace".
-	no_link_threshold = 1000.0
+	# Detectar automáticamente un umbral de "sin enlace" a partir de la matriz.
+	no_link_threshold = detect_no_link_threshold(mat)
+	if no_link_threshold > 0.0
+		@info "Interpretando valores >= $no_link_threshold como 'sin enlace'"
+	else
+		@info "No se detectó un umbral de 'sin enlace' explícito; se interpretan ceros como inválidos si aparecen fuera de la diagonal."
+	end
 	max_initial_attempts = 1000
 	initial_tour = nothing
 	initial_dist = Inf
