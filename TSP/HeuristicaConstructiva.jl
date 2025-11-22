@@ -6,7 +6,10 @@
 # paso selecciona la ciudad no visitada más cercana (greedy).
 #
 # Uso:
-#  julia TSP/HeuristicaConstructuva.jl [ruta_a_matriz]
+#  julia TSP/HeuristicaConstructuva.jl [ruta_a_matriz] [--seed=NUM]
+#
+# Opciones:
+#  --seed=NUM, -s NUM, --seed NUM    Fija la semilla del RNG para resultados reproducibles
 #
 # Notas:
 #  - La matriz debe ser cuadrada y separada por `;`.
@@ -24,6 +27,33 @@ const DEFAULT_MATRIX = joinpath(@__DIR__, "..", "AlgoritmoFuerzaBruta", "matriz-
 function read_distance_matrix(path::AbstractString; sep=';')
     data = readdlm(path, sep, header=false)
     return Array{Float64}(data)
+end
+
+function parse_seed_from_args()
+    # busca --seed=NN
+    for a in ARGS
+        if startswith(a, "--seed=")
+            s = split(a, "=", limit=2)[2]
+            try
+                return parse(Int, s)
+            catch
+                return nothing
+            end
+        end
+    end
+    # buscar -s NUM o --seed NUM
+    for (i, a) in enumerate(ARGS)
+        if a == "-s" || a == "--seed"
+            if i < length(ARGS)
+                try
+                    return parse(Int, ARGS[i+1])
+                catch
+                    return nothing
+                end
+            end
+        end
+    end
+    return nothing
 end
 
 """
@@ -131,6 +161,18 @@ end
 
 function main()
     matrix_file = length(ARGS) >= 1 ? ARGS[1] : DEFAULT_MATRIX
+    # detectar seed en ARGS (soporta --seed=NUM, -s NUM, --seed NUM)
+    seed = parse_seed_from_args()
+    if seed === nothing
+        # generar seed a partir de milisegundos actuales
+        ms = Int(Base.time_ns() ÷ 1_000_000)
+        # reducir tamaño para evitar overflow en algunas plataformas
+        seed = Int(ms % Int(2^31 - 1))
+        @info "No se recibió seed; generando semilla a partir de milisegundos" seed=seed
+    else
+        @info "Fijando semilla RNG" seed=seed
+    end
+    Random.seed!(seed)
     @info "Leyendo matriz de distancias" archivo=matrix_file
     if !isfile(matrix_file)
         @error "Archivo de matriz no encontrado" archivo=matrix_file
