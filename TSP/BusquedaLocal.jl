@@ -36,7 +36,7 @@ using DelimitedFiles
 using Random
 using Logging
 
-const DEFAULT_MATRIX = joinpath(@__DIR__, "..", "AlgoritmoFuerzaBruta", "matriz-8ciudades.txt")
+const DEFAULT_MATRIX = joinpath(@__DIR__, "..", "data", "matriz-8ciudades.txt")
 
 """
 	read_distance_matrix(path; sep=';') -> Matrix{Float64}

@@ -197,10 +197,48 @@ function main()
             end
         end
 
+        # intento inicial desde la ciudad 1
         (tour, dist) = construir_recorrido_voraz(mat; start=1, no_link_threshold=no_link_threshold, random_ties=false)
         if dist == Inf
-            @error "No se pudo construir un recorrido válido con la estrategia voraz (grafo posiblemente desconectado)."
-            return
+            @warn "Recorrido voraz inválido desde start=1; intentando otras estrategias (otros starts, reinicios aleatorios)."
+
+            # 1) probar todos los posibles start si hay alguna ciudad que permita construir el tour
+            best_tour = Int[]
+            best_dist = Inf
+            for s in 1:n
+                (t2, d2) = construir_recorrido_voraz(mat; start=s, no_link_threshold=no_link_threshold, random_ties=false)
+                if d2 < best_dist
+                    best_dist = d2
+                    best_tour = t2
+                end
+            end
+
+            if best_dist < Inf
+                @info "Se encontró recorrido válido probando distintos starts" start_used=best_tour[1] distancia=best_dist
+                tour, dist = best_tour, best_dist
+            else
+                # 2) si sigue sin encontrarse, realizar reinicios aleatorios con ruptura de empates
+                RESTARTS = 50
+                @info "Ningún start produjo tour válido; intentando $RESTARTS reinicios aleatorios (ruptura de empates)."
+                for r in 1:RESTARTS
+                    # variación de semilla por reinicio para asegurar diversidad
+                    Random.seed!(seed + r)
+                    start_r = rand(1:n)
+                    (t2, d2) = construir_recorrido_voraz(mat; start=start_r, no_link_threshold=no_link_threshold, random_ties=true)
+                    if d2 < best_dist
+                        best_dist = d2
+                        best_tour = t2
+                    end
+                end
+
+                if best_dist < Inf
+                    @info "Se encontró recorrido válido mediante reinicios aleatorios" distancia=best_dist
+                    tour, dist = best_tour, best_dist
+                else
+                    @error "No se pudo construir un recorrido válido después de probar starts y reinicios aleatorios. El grafo parece desconectado."
+                    return
+                end
+            end
         end
     end
     @info "Tiempo de ejecución" segundos=elapsed_time
