@@ -61,7 +61,7 @@ Notas:
    `[1; permutación; 1]`.
 """
 function main()
-    default_file = joinpath(@__DIR__, "../AlgoritmoFuerzaBruta/matriz-8ciudades.txt")
+    default_file = joinpath(@__DIR__, "../data/matriz-8ciudades.txt")
     distancias_ciudades = length(ARGS) >= 1 ? ARGS[1] : default_file
     if !isfile(distancias_ciudades)
         @error "Archivo de distancias no encontrado" archivo=distancias_ciudades

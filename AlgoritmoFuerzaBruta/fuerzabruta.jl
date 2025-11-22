@@ -17,10 +17,6 @@
 #    inexistencia de enlace, hay que validar o sustituir esos ceros antes
 #    de usar fuerza bruta (ver notas al final).
 #
-# Nota importante:
-#  - El recorrido construido por este script fija el nodo inicial y final en 1.
-#    Cada permutación se evalúa como `[1; permutación; 1]`.
-#
 # Salida:
 #  - Imprime (por pantalla) la mejor distancia encontrada y el camino
 #    correspondiente. También muestra tiempos de ejecución.
@@ -30,11 +26,7 @@
 #  - Paquetes: DelimitedFiles (estándar), Combinatorics
 #
 # Ejemplo de uso (desde el directorio raíz del repo):
-#  julia AlgoritmoFuerzaBruta/fuerzabruta.jl [ruta_a_archivo]
-#
-# Nota: el primer parámetro de línea de comandos, si se proporciona, se interpreta
-# como la ruta al archivo que contiene la matriz de distancias. Si no se pasa,
-# se usa por defecto `AlgoritmoFuerzaBruta/matriz-8ciudades.txt`.
+#  julia AlgoritmoFuerzaBruta/fuerzabruta.jl
 #
 # Notas de mantenimiento / mejoras sugeridas:
 #  - Reemplazar `println` por `Logging` para mayor control.
@@ -48,14 +40,14 @@ using DelimitedFiles
 using Combinatorics
 using Logging
 
-elapsed_time = @elapsed begin
-default_file = joinpath(@__DIR__, "matriz-8ciudades.txt")
-distancias_ciudades = length(ARGS) >= 1 ? ARGS[1] : default_file
-if !isfile(distancias_ciudades)
-    @error "Archivo de distancias no encontrado" archivo=distancias_ciudades
-    exit(1)
-end
-@info "Usando archivo de distancias" archivo=distancias_ciudades
+#distancias_ciudades = "AlgoritmoFuerzaBruta/matriz-7ciudades.csv"
+distancias_ciudades = "AlgoritmoFuerzaBruta/matriz-8ciudades.txt"
+#distancias_ciudades = "AlgoritmoFuerzaBruta/matriz-9ciudades.txt"
+#distancias_ciudades = "AlgoritmoFuerzaBruta/matriz-10ciudades.txt"
+#distancias_ciudades = "AlgoritmoFuerzaBruta/matriz-11ciudades.txt"
+#distancias_ciudades = "AlgoritmoFuerzaBruta/matriz-13ciudades.txt"
+#distancias_ciudades = "AlgoritmoFuerzaBruta/tsp_p01_d.txt"
+#distancias_ciudades = "AlgoritmoFuerzaBruta/SienaBldgs.txt"
 
 ciudad_data = readdlm(distancias_ciudades, ';', header=false)
 n=size(ciudad_data)
@@ -66,21 +58,22 @@ mejor_camino=[]
 
 mejor_distancia=10000000
 
-for path in collect(permutations(2:cols,cols-1))
-    #pushfirst!(path,1)
-    #push!(path,1)
-    path=[1; path; 1]
-    n1=size(path)
-    distancia_actual=0
-    for j in 1:n1[1]-1
-        distancia_actual+=ciudad_data[path[j],path[j+1]]
+elapsed_time = @elapsed begin
+    for path in collect(permutations(2:cols,cols-1))
+        #pushfirst!(path,1)
+        #push!(path,1)
+        path=[1; path; 1]
+        n1=size(path)
+        distancia_actual=0
+        for j in 1:n1[1]-1
+            distancia_actual+=ciudad_data[path[j],path[j+1]]
+        end
+        if (distancia_actual<mejor_distancia)
+            global mejor_camino=path
+            global mejor_distancia=distancia_actual
+            @info "Nueva mejor distancia" distancia=distancia_actual
+            @info "Mejor camino" camino=mejor_camino
+        end
     end
-    if (distancia_actual<mejor_distancia)
-        global mejor_camino=path
-        global mejor_distancia=distancia_actual
-        @info "Nueva mejor distancia" distancia=distancia_actual
-        @info "Mejor camino" camino=mejor_camino
-    end
-end
 end
 @info "Tiempo de ejecución" segundos=elapsed_time
