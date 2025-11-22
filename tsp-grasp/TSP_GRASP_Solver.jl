@@ -37,18 +37,59 @@ Supuestos:
         coordenadas con filas `indice x y`.
 """
 function readInstance(filename)
-    file = open(filename)
-    name = split(readline(file),":")[2] # name of the instance (not used)
-    readline(file); readline(file) # skip 2 lines
-    dim = parse(Int32, split(readline(file),":")[2]) # the number of cities
-    readline(file); readline(file) # skip 2 lines
-    coord = zeros(Float32, dim, 2) # coordinates
-    for i in 1:dim
-        data = parse.(Float32, split(readline(file)))
-        coord[i, :] = data[2:3]
+    # Lectura robusta: soporta instancias con NODE_COORD_SECTION o
+    # con EDGE_WEIGHT_SECTION (FULL_MATRIX). Devuelve un tercer valor
+    # indicando si lo devuelto es la matriz de distancias.
+    lines = readlines(filename)
+    # buscar DIMENSION
+    dim = nothing
+    for ln in lines
+        if occursin("DIMENSION", ln)
+            parts = split(ln, ":")
+            dim = parse(Int, strip(parts[end]))
+            break
+        end
     end
-    close(file)
-    return coord, dim
+    if dim === nothing
+        error("No se pudo detectar DIMENSION en $filename")
+    end
+
+    # buscar EDGE_WEIGHT_SECTION
+    ew_idx = findfirst(x -> occursin("EDGE_WEIGHT_SECTION", x), lines)
+    if ew_idx !== nothing
+        # leer dim*dim valores a partir de la sección
+        tokens = String[]
+        for i in (ew_idx+1):length(lines)
+            parts = split(strip(lines[i]))
+            # keep only numeric tokens
+            for p in parts
+                if tryparse(Float64, p) !== nothing
+                    push!(tokens, p)
+                end
+            end
+            if length(tokens) >= dim * dim
+                break
+            end
+        end
+        if length(tokens) < dim * dim
+            error("Sección EDGE_WEIGHT_SECTION incompleta en $filename")
+        end
+    vals = Float32.(parse.(Float64, tokens[1:(dim * dim)]))
+    dist = reshape(vals, Int(dim), Int(dim))
+        return dist, dim, true
+    end
+
+    # si no hay EDGE_WEIGHT_SECTION, buscar NODE_COORD_SECTION
+    nc_idx = findfirst(x -> occursin("NODE_COORD_SECTION", x), lines)
+    if nc_idx === nothing
+        error("Ni NODE_COORD_SECTION ni EDGE_WEIGHT_SECTION encontrados en $filename")
+    end
+    coord = zeros(Float32, Int(dim), 2)
+    for i in 1:dim
+        data = split(strip(lines[nc_idx + i]))
+        coord[i, :] = parse.(Float32, data[2:3])
+    end
+    return coord, dim, false
 end
 
 """ getDistanceMatrix(coord, dim) -> dist
@@ -230,8 +271,13 @@ Imprime el mejor recorrido y su costo encontrados.
 """
 function TSP_Solver(filename, k::Int=3, time_limit::Int=60, local_time_limit::Real=3.0)
     # prepare data
-    coord, dim = readInstance(filename)
-    dist = getDistanceMatrix(coord, dim)
+    data, dim, is_matrix = readInstance(filename)
+    if is_matrix
+        dist = data
+    else
+        coord = data
+        dist = getDistanceMatrix(coord, dim)
+    end
     startTime = time_ns()
 
     # initial solution

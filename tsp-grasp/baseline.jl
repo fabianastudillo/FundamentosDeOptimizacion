@@ -37,12 +37,44 @@ function main(tsp_path::String)
         set_default_optimizer!(GLPK.Optimizer)
 
         # compile run
-        # Si el optimizador no soporta 'warm start' (p. ej. GLPK), desactivar
-        # el heuristic_warmstart para evitar errores relacionados con
-        # MathOptInterface.VariablePrimalStart.
-        get_optimal_tour(points; verbose=false, heuristic_warmstart=false)
+        # Intentar resolver exactamente con TravelingSalesmanExact. Si el
+        # optimizador no consigue eliminar todos los subtours (caso observado
+        # con GLPK en algunas instancias pequeñas), se reintentará activando
+        # lazy constraints; si vuelve a fallar, se sugiere o ejecuta la
+        # alternativa heurística (GRASP) como fallback.
+        function try_exact(points, tspfile)
+            try
+                # intento rápido sin warmstart
+                get_optimal_tour(points; verbose=false, heuristic_warmstart=false)
+                @time get_optimal_tour(points; verbose=false, heuristic_warmstart=false)
+                return true
+            catch e
+                msg = sprint(showerror, e)
+                @warn "Error en solución exacta: $msg"
+                if occursin("subtour", lowercase(msg)) || occursin("subtours", lowercase(msg))
+                    @info "Intentando reintento con lazy_constraints=true (más robusto pero más lento)"
+                    try
+                        get_optimal_tour(points; verbose=true, lazy_constraints=true, heuristic_warmstart=false)
+                        return true
+                    catch e2
+                        msg2 = sprint(showerror, e2)
+                        @error "Reintento con lazy_constraints falló: $msg2"
+                        # Fallback: sugerir uso de heurística o ejecutar el GRASP localmente
+                        println("Fallo la resolución exacta. Ejecutando GRASP heurístico como fallback...")
+                        try
+                            run(`julia tsp-grasp/TSP_GRASP_Solver.jl $tspfile --time=60 --local-time=3 --k=3`)
+                        catch runerr
+                            println("No se pudo ejecutar el solver heurístico automáticamente. Ejecuta: julia tsp-grasp/TSP_GRASP_Solver.jl $tspfile")
+                        end
+                        return false
+                    end
+                else
+                    rethrow(e)
+                end
+            end
+        end
 
-        @time get_optimal_tour(points; verbose=false, heuristic_warmstart=false)
+        try_exact(points, tsp_path)
         println("Ruta final: ", points)
 
         final_solution = 0.0
