@@ -103,10 +103,11 @@ Argumentos:
 Devuelve:
     - dist: matriz (dim x dim) simétrica con distancias (Float32).
 """
-function getDistanceMatrix(coord::Array{Float32,2}, dim::Int32)
-    dist = zeros(Float32, dim, dim)
-    for i in 1:dim
-        for j in 1:dim
+function getDistanceMatrix(coord::Array{Float32,2}, dim::Integer)
+    n = Int(dim)
+    dist = zeros(Float32, n, n)
+    for i in 1:n
+        for j in 1:n
             if i != j
                 dist[i, j] = round(sqrt((coord[i, 1] - coord[j, 1])^2 + (coord[i, 2] - coord[j, 2])^2), digits=0)
             end
