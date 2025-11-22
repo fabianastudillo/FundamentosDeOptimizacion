@@ -48,39 +48,58 @@ using DelimitedFiles
 using Combinatorics
 using Logging
 
-elapsed_time = @elapsed begin
-default_file = joinpath(@__DIR__, "matriz-8ciudades.txt")
-distancias_ciudades = length(ARGS) >= 1 ? ARGS[1] : default_file
-if !isfile(distancias_ciudades)
-    @error "Archivo de distancias no encontrado" archivo=distancias_ciudades
-    exit(1)
-end
-@info "Usando archivo de distancias" archivo=distancias_ciudades
+"""
+    main()
 
-ciudad_data = readdlm(distancias_ciudades, ';', header=false)
-n=size(ciudad_data)
-cols=n[1]
-rows=n[2]
-
-mejor_camino=[]
-
-mejor_distancia=10000000
-
-for path in collect(permutations(2:cols,cols-1))
-    #pushfirst!(path,1)
-    #push!(path,1)
-    path=[1; path; 1]
-    n1=size(path)
-    distancia_actual=0
-    for j in 1:n1[1]-1
-        distancia_actual+=ciudad_data[path[j],path[j+1]]
+Ejecuta la búsqueda por fuerza bruta para el TSP.
+Argumentos:
+ - ARGS[1] (opcional): ruta al archivo que contiene la matriz de distancias
+                      (separador `;`). Si no se proporciona se usa un archivo
+                      por defecto relativo al repositorio.
+Notas:
+ - El nodo inicial/final está fijado en 1; cada permutación se evalúa como
+   `[1; permutación; 1]`.
+"""
+function main()
+    default_file = joinpath(@__DIR__, "../AlgoritmoFuerzaBruta/matriz-8ciudades.txt")
+    distancias_ciudades = length(ARGS) >= 1 ? ARGS[1] : default_file
+    if !isfile(distancias_ciudades)
+        @error "Archivo de distancias no encontrado" archivo=distancias_ciudades
+        return
     end
-    if (distancia_actual<mejor_distancia)
-        global mejor_camino=path
-        global mejor_distancia=distancia_actual
-        @info "Nueva mejor distancia" distancia=distancia_actual
-        @info "Mejor camino" camino=mejor_camino
+    @info "Usando archivo de distancias" archivo=distancias_ciudades
+
+    ciudad_data = readdlm(distancias_ciudades, ';', header=false)
+    n = size(ciudad_data)
+    cols = n[1]
+    rows = n[2]
+
+    mejor_camino = []
+    mejor_distancia = Inf
+
+    elapsed_time = @elapsed begin
+        for path in collect(permutations(2:cols, cols-1))
+            path = [1; path; 1]
+            n1 = size(path)
+            distancia_actual = 0.0
+            for j in 1:n1[1]-1
+                distancia_actual += ciudad_data[path[j], path[j+1]]
+            end
+            if distancia_actual < mejor_distancia
+                mejor_camino = copy(path)
+                mejor_distancia = distancia_actual
+                @info "Nueva mejor distancia" distancia=distancia_actual
+                @info "Mejor camino" camino=mejor_camino
+            end
+        end
     end
+
+    @info "Tiempo de ejecución" segundos=elapsed_time
+    println("Recorrido final: ", join(mejor_camino, " → "))
+    println("Distancia total: ", mejor_distancia)
 end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+    global_logger(SimpleLogger(stderr, Logging.Info))
+    main()
 end
-@info "Tiempo de ejecución" segundos=elapsed_time

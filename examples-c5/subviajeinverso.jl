@@ -24,6 +24,9 @@ A = [
       12 1000    9    1000     7     9 1000
 ]
 
+# Umbral que indica "sin enlace" (valor grande en la matriz)
+const NO_LINK_THRESHOLD = 1000.0
+
 
 # Coordenadas de ciudades (distribuidas en círculo para visualización)
 n_cities = 7
@@ -46,9 +49,22 @@ function calculate_distance(tour, dist_matrix)
     for i in 1:length(tour)
         current = tour[i]
         next = tour[i % length(tour) + 1]
-        total += dist_matrix[current, next]
+        d = dist_matrix[current, next]
+        # Si hay un arco inexistente, considerar la distancia como infinita
+        if d >= NO_LINK_THRESHOLD
+            return Inf
+        end
+        total += d
     end
     return total
+end
+
+function format_distance(d)
+    if d === Inf || isnan(d)
+        return "Inf"
+    else
+        return string(round(d, digits=2))
+    end
 end
 
 # Función para aplicar 2-opt (invertir un segmento)
@@ -59,6 +75,9 @@ function two_opt_move(tour, i, k)
     return new_tour
 end
 
+# Inicio de bloque local para evitar advertencias de scope en scripts
+let
+
 # Recorrido inicial
 tour = [1, 2, 3, 4, 5, 6, 7]
 initial_distance = calculate_distance(tour, A)
@@ -67,50 +86,58 @@ distance_history = [initial_distance]
 improvement_history = [0.0]
 
 println("Recorrido inicial: $(join(tour, " → ")) → 1")
-println("Distancia inicial: $initial_distance")
+println("Distancia inicial: $(format_distance(initial_distance))")
 println()
 println("Ejecutando algoritmo 2-opt...")
 println("-" ^ 70)
 
-# Algoritmo 2-opt
-improved = true
-iteration = 0
+# Algoritmo 2-opt: invertir segmentos contiguos de nodos 2..n
+global iteration = 0
 max_iterations = 50
+n = length(tour)
+global improved = true
 
 while improved && iteration < max_iterations
-    global improved, iteration, tour
-    improved = false
     iteration += 1
-    
-    for i in 1:length(tour)-1
-        for k in (i+2):length(tour)
-            # Crear nuevo tour invirtiendo segmento [i:k]
-            new_tour = two_opt_move(tour, i, k)
-            new_distance = calculate_distance(new_tour, A)
-            current_distance = calculate_distance(tour, A)
-            
-            # Si hay mejora, actualizar
-            if new_distance < current_distance
-                improvement = current_distance - new_distance
-                
-                println("Iteración $iteration: Invertir ciudades $(tour[i]) a $(tour[k])")
-                println("  Recorrido: $(join(new_tour, " → ")) → 1")
-                println("  Distancia anterior: $current_distance")
-                println("  Distancia nueva: $new_distance")
-                println("  Mejora: $improvement")
-                println()
-                
-                tour = new_tour
-                push!(tour_history, copy(tour))
-                push!(distance_history, new_distance)
-                push!(improvement_history, improvement)
-                
-                improved = true
-                break
+    improved = false
+    current_distance = calculate_distance(tour, A)
+
+    # recorrer longitudes de segmento desde 2 hasta n-1 (excluyendo el nodo 1)
+    for L in 2:(n-1)
+        best_distance_L = Inf
+        best_tour_L = nothing
+        best_start_L = nothing
+
+        # ventanas que comienzan en posiciones 2..(n-L+1)
+        for i in 2:(n - L + 1)
+            k = i + L - 1
+            candidate = two_opt_move(tour, i, k)
+            cand_dist = calculate_distance(candidate, A)
+
+            if cand_dist < best_distance_L
+                best_distance_L = cand_dist
+                best_tour_L = candidate
+                best_start_L = i
             end
         end
-        if improved
-            break
+
+        # si la mejor inversión para esta L mejora la solución actual, aplicarla
+        if best_distance_L < current_distance
+            improvement = current_distance - best_distance_L
+            println("Iteración $iteration: Reversión de longitud $L empezando en posición $best_start_L (ciudades $(tour[best_start_L]) a $(tour[best_start_L + L - 1]))")
+            println("  Distancia anterior: $(format_distance(current_distance))")
+            println("  Distancia nueva: $(format_distance(best_distance_L))")
+            println("  Mejora: $(round(improvement, digits=2))")
+            println()
+
+            tour = best_tour_L
+            push!(tour_history, copy(tour))
+            push!(distance_history, best_distance_L)
+            push!(improvement_history, improvement)
+
+            # actualizar la distancia actual para considerar siguientes L en este pase
+            current_distance = best_distance_L
+            improved = true
         end
     end
 end
@@ -122,6 +149,7 @@ println("Mejora total: $(initial_distance - distance_history[end])")
 println("Mejora porcentual: $(round(100 * (initial_distance - distance_history[end]) / initial_distance, digits=2))%")
 println("Total de iteraciones: $(length(tour_history) - 1)")
 println()
+ 
 
 # Configurar tema
 set_theme!(Theme(
@@ -275,17 +303,18 @@ record(fig, "examples-c5/subviajeinverso-animacion.gif",
                        linestyle = :dash,
                        label = frame_num == 2 ? "Enlaces a eliminar" : "")
                 
-                # Agregar distancia en el medio del enlace
-                dist = A[current_ant, next_ant]
+             # Agregar distancia en el medio del enlace
+             dist = A[current_ant, next_ant]
                 x_mid = (x_start + x_end) / 2
                 y_mid = (y_start + y_end) / 2
-                text!(ax, x_mid, y_mid,
-                     text = "$(Int(dist))",
-                     fontsize = 16,
-                     color = :red,
-                     font = :bold,
-                     align = (:center, :center),
-                     offset = (8, 8))
+             lbl = dist >= NO_LINK_THRESHOLD ? "X" : string(Int(dist))
+             text!(ax, x_mid, y_mid,
+                 text = lbl,
+                 fontsize = 16,
+                 color = :red,
+                 font = :bold,
+                 align = (:center, :center),
+                 offset = (8, 8))
             end
         end
         
@@ -319,17 +348,18 @@ record(fig, "examples-c5/subviajeinverso-animacion.gif",
                        linestyle = :dash,
                        label = frame_num == 2 ? "Enlaces a agregar" : "")
                 
-                # Agregar distancia en el medio del enlace
-                dist = A[current_new, next_new]
+             # Agregar distancia en el medio del enlace
+             dist = A[current_new, next_new]
                 x_mid = (x_start + x_end) / 2
                 y_mid = (y_start + y_end) / 2
-                text!(ax, x_mid, y_mid,
-                     text = "$(Int(dist))",
-                     fontsize = 16,
-                     color = :green,
-                     font = :bold,
-                     align = (:center, :center),
-                     offset = (-8, -8))
+             lbl = dist >= NO_LINK_THRESHOLD ? "X" : string(Int(dist))
+             text!(ax, x_mid, y_mid,
+                 text = lbl,
+                 fontsize = 16,
+                 color = :green,
+                 font = :bold,
+                 align = (:center, :center),
+                 offset = (-8, -8))
             end
         end
     end
@@ -342,10 +372,20 @@ record(fig, "examples-c5/subviajeinverso-animacion.gif",
         x_start, y_start = coords[current]
         x_end, y_end = coords[next]
         
-        lines!(ax, [x_start, x_end], [y_start, y_end],
-               color = :blue,
-               linewidth = 3,
-               alpha = 0.8)
+     dist = A[current, next]
+     if dist >= NO_LINK_THRESHOLD
+         # arco inexistente: dibujar punteado rojo tenue
+         lines!(ax, [x_start, x_end], [y_start, y_end],
+             color = :red,
+             linewidth = 2,
+             alpha = 0.4,
+             linestyle = :dash)
+     else
+         lines!(ax, [x_start, x_end], [y_start, y_end],
+             color = :blue,
+             linewidth = 3,
+             alpha = 0.8)
+     end
         
         # Flecha de dirección
         dx = (x_end - x_start) * 0.75
@@ -355,16 +395,17 @@ record(fig, "examples-c5/subviajeinverso-animacion.gif",
                linewidth = 2.5,
                arrowsize = 18)
         
-        # Agregar distancia en el medio del enlace
-        dist = A[current, next]
-        x_mid = (x_start + x_end) / 2
-        y_mid = (y_start + y_end) / 2
-        text!(ax, x_mid, y_mid,
-             text = "$(Int(dist))",
-             fontsize = 16,
-             color = :darkblue,
-             font = :bold,
-             align = (:center, :center))
+       # Agregar distancia en el medio del enlace
+       dist = A[current, next]
+       x_mid = (x_start + x_end) / 2
+       y_mid = (y_start + y_end) / 2
+       lbl = dist >= NO_LINK_THRESHOLD ? "X" : string(Int(dist))
+       text!(ax, x_mid, y_mid,
+           text = lbl,
+           fontsize = 16,
+           color = :darkblue,
+           font = :bold,
+           align = (:center, :center))
     end
     
     # Dibujar ciudades
@@ -417,4 +458,5 @@ println("Distancia final: $(distance_history[end])")
 println("Mejora total: $(initial_distance - distance_history[end])")
 println("Mejora porcentual: $(round(100 * (initial_distance - distance_history[end]) / initial_distance, digits=2))%")
 println("Número de iteraciones: $(length(tour_history) - 1)")
+end
 println()
